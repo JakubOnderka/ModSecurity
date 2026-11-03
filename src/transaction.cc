@@ -680,12 +680,13 @@ void Transaction::buildFullRequest() {
     std::vector<const VariableValue *> l;
     m_variableRequestHeaders.resolve(&l);
     for (auto &h : l) {
-        fullRequest = fullRequest + h->getKey() + ": " + h->getValue() + "\n";
+        fullRequest.append(h->getKey()).append(": ")
+            .append(h->getValue()).append("\n");
         delete h;
     }
 
-    fullRequest = fullRequest + "\n\n";
-    fullRequest = fullRequest + m_requestBody.str();
+    fullRequest.append("\n\n");
+    fullRequest.append(m_requestBody.str());
     m_variableFullRequest.set(fullRequest, m_variableOffset);
     m_variableFullRequestLength.set(std::to_string(fullRequest.size()),
         m_variableOffset);
