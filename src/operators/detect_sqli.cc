@@ -29,10 +29,6 @@ namespace modsecurity::operators {
 
 bool DetectSQLi::evaluate(Transaction *t, RuleWithActions *rule,
     const std::string& input, RuleMessage &ruleMessage) {
-#ifndef NO_LOGS
-    const std::string loggable_input =
-        utils::string::limitTo(80, utils::string::toHexIfNeeded(input));
-#endif
 
     std::array<char, 8> fingerprint{};
 
@@ -47,11 +43,9 @@ bool DetectSQLi::evaluate(Transaction *t, RuleWithActions *rule,
         case LIBINJECTION_RESULT_TRUE:
             t->m_matched.emplace_back(fingerprint.data());
 
-#ifndef NO_LOGS
             ms_dbg_a(t, 4,
                 std::string("detected SQLi using libinjection with fingerprint '")
-                + fingerprint.data() + "' at: '" + loggable_input + "'");
-#endif
+                + fingerprint.data() + "' at: '" + utils::string::limitToHexIfNeeded(80, input) + "'");
 
             if (rule != nullptr && rule->hasCaptureAction()) {
                 t->m_collections.m_tx_collection->storeOrUpdateFirst(
@@ -64,13 +58,11 @@ bool DetectSQLi::evaluate(Transaction *t, RuleWithActions *rule,
             break;
 
         case LIBINJECTION_RESULT_ERROR:
-#ifndef NO_LOGS
             ms_dbg_a(t, 4,
                 std::string("libinjection parser error during SQLi analysis (")
                 + libinjectionResultToString(sqli_result)
                 + "); treating as match (fail-safe). Input: '"
-                + loggable_input + "'");
-#endif
+                + utils::string::limitToHexIfNeeded(80, input) + "'");
 
             if (rule != nullptr && rule->hasCaptureAction()) {
                 t->m_collections.m_tx_collection->storeOrUpdateFirst(
@@ -86,11 +78,9 @@ bool DetectSQLi::evaluate(Transaction *t, RuleWithActions *rule,
             break;
 
         case LIBINJECTION_RESULT_FALSE:
-#ifndef NO_LOGS
             ms_dbg_a(t, 9,
                 std::string("libinjection was not able to find any SQLi in: ")
-                + loggable_input);
-#endif
+                + utils::string::limitToHexIfNeeded(80, input));
             break;
     }
 

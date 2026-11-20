@@ -114,7 +114,7 @@ class Operator {
     }
 
     virtual std::string resolveMatchMessage(Transaction *t,
-        std::string key, std::string value);
+        const std::string &key, const std::string &value);
 
     bool evaluateInternal(Transaction *t, const std::string& a);
     bool evaluateInternal(Transaction *t, RuleWithActions *rule,

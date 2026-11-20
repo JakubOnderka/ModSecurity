@@ -151,7 +151,7 @@ bool Operator::evaluateInternal(Transaction *transaction,
 
 
 std::string Operator::resolveMatchMessage(Transaction *t,
-    std::string key, std::string value) {
+    const std::string &key, const std::string &value) {
     std::string ret = m_match_message;
 
     if (ret.empty() == true) {
@@ -159,16 +159,14 @@ std::string Operator::resolveMatchMessage(Transaction *t,
             ret = "Matched \"Operator `" + m_op + "' with parameter `" +
                 utils::string::limitTo(200, m_param) +
                 "' against variable `" + utils::string::toHexIfNeeded(key) + "' (Value: `" +
-                utils::string::limitTo(100,
-                    utils::string::toHexIfNeeded(value)) + \
+                utils::string::limitToHexIfNeeded(100, value) + \
                 "' )";
         } else {
             std::string p(m_string->evaluate(t));
             ret = "Matched \"Operator `" + m_op + "' with parameter `" +
                 utils::string::limitTo(200, p) +
                 "' against variable `" + utils::string::toHexIfNeeded(key) + "' (Value: `" +
-                utils::string::limitTo(100,
-                    utils::string::toHexIfNeeded(value)) +
+                utils::string::limitToHexIfNeeded(100, value) +
                 "' )";
         }
     }

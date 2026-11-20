@@ -99,9 +99,8 @@ bool RuleWithOperator::executeOperatorAt(Transaction *trans, const std::string &
 #endif
     bool ret;
 
-    ms_dbg_a(trans, 9, "Target value: \"" + utils::string::limitTo(80,
-        utils::string::toHexIfNeeded(value)) \
-        + "\" (Variable: " + key + ")");
+    ms_dbg_a(trans, 9, "Target value: \"" + utils::string::limitToHexIfNeeded(80,
+        value) + "\" (Variable: " + key + ")");
 
     ret = this->m_operator->evaluateInternal(trans, this, value, ruleMessage);
 
