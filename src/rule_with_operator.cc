@@ -99,9 +99,8 @@ bool RuleWithOperator::executeOperatorAt(Transaction *trans, const std::string &
 #endif
     bool ret;
 
-    ms_dbg_a(trans, 9, "Target value: \"" + utils::string::limitTo(80,
-        utils::string::toHexIfNeeded(value)) \
-        + "\" (Variable: " + key + ")");
+    ms_dbg_a(trans, 9, "Target value: \"" + utils::string::limitToHexIfNeeded(80,
+        value) + "\" (Variable: " + key + ")");
 
     ret = this->m_operator->evaluateInternal(trans, this, value, ruleMessage);
 
@@ -198,10 +197,12 @@ inline void RuleWithOperator::getFinalVars(variables::Variables *vars,
 
 bool RuleWithOperator::evaluate(Transaction *trans,
     RuleMessage &ruleMessage) {
+    if (trans == nullptr || trans->m_rules == nullptr) {
+        return false;
+    }
     bool globalRet = false;
     bool recursiveGlobalRet;
     bool containsBlock = hasBlockAction();
-    std::string eparam;
     variables::Variables vars;
     vars.reserve(4);
     variables::Variables exclusion;
@@ -227,27 +228,34 @@ bool RuleWithOperator::evaluate(Transaction *trans,
         return true;
     }
 
-    if (m_operator->m_string) {
-        eparam = m_operator->m_string->evaluate(trans);
+#ifndef NO_LOGS
+    // The operator parameter below is needed only for this debug message.
+    // Do not evaluate macros or build strings when the message is disabled.
+    if (trans->m_rules->m_debugLog != nullptr
+        && trans->m_rules->m_debugLog->m_debugLevel >= 4) {
+        if (m_operator->m_string) {
+            std::string eparam = m_operator->m_string->evaluate(trans);
 
-        if (m_operator->m_string->containsMacro()) {
-            eparam = "\"" + eparam + "\" Was: \"" \
-                + m_operator->m_string->evaluate(NULL) + "\"";
+            if (m_operator->m_string->containsMacro()) {
+                eparam = "\"" + eparam + "\" Was: \"" \
+                    + m_operator->m_string->evaluate(NULL) + "\"";
+            } else {
+                eparam = "\"" + eparam + "\"";
+            }
+            ms_dbg_a(trans, 4, "(Rule: " + std::to_string(m_ruleId) \
+                + ") Executing operator \"" + getOperatorName() \
+                + "\" with param " \
+                + eparam \
+                + " against " \
+                + m_variables + ".");
         } else {
-            eparam = "\"" + eparam + "\"";
+            ms_dbg_a(trans, 4, "(Rule: " + std::to_string(m_ruleId) \
+                + ") Executing operator \"" + getOperatorName() \
+                + " against " \
+                + m_variables + ".");
         }
-    ms_dbg_a(trans, 4, "(Rule: " + std::to_string(m_ruleId) \
-        + ") Executing operator \"" + getOperatorName() \
-        + "\" with param " \
-        + eparam \
-        + " against " \
-        + m_variables + ".");
-    } else {
-        ms_dbg_a(trans, 4, "(Rule: " + std::to_string(m_ruleId) \
-            + ") Executing operator \"" + getOperatorName() \
-            + " against " \
-            + m_variables + ".");
     }
+#endif
 
 
     getFinalVars(&vars, &exclusion, trans);
@@ -298,10 +306,12 @@ bool RuleWithOperator::evaluate(Transaction *trans,
                     ruleMessage.m_match = m_operator->resolveMatchMessage(trans,
                         key, value);
                     for (const auto &i : v->getOrigin()) {
-                        ruleMessage.m_reference.append(i.toText());
+                        operators::Operator::appendReference(ruleMessage,
+                            i.toText());
                     }
 
-                    ruleMessage.m_reference.append(*valueTemp.second);
+                    operators::Operator::appendReference(ruleMessage,
+                        *valueTemp.second);
                     updateMatchedVars(trans, key, valueAfterTrans);
                     executeActionsIndependentOfChainedRuleResult(trans,
                         &containsBlock, ruleMessage);
@@ -314,8 +324,7 @@ bool RuleWithOperator::evaluate(Transaction *trans,
             delete v;
             v = NULL;
         }
-        e.clear();
-        e.reserve(4);
+        // e is local to this iteration and is destroyed here.
     }
 
     if (globalRet == false) {

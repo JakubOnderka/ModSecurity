@@ -110,10 +110,18 @@ void Operator::reportRegexSearchError(Transaction *transaction,
 
 bool Operator::evaluateInternal(Transaction *transaction,
     RuleWithActions *rule, const std::string& a, RuleMessage &ruleMessage) {
+    const size_t referenceSize = ruleMessage.m_reference.size();
     bool res = evaluate(transaction, rule, a, ruleMessage);
 
     if (m_negation) {
-        return !res;
+        res = !res;
+    }
+
+    /* Offsets logged by an evaluation that is not a match (a negated
+     * operator that found something) must not end up in the reference of
+     * the next value that does match. */
+    if (!res) {
+        ruleMessage.m_reference.resize(referenceSize);
     }
 
     return res;
@@ -143,7 +151,7 @@ bool Operator::evaluateInternal(Transaction *transaction,
 
 
 std::string Operator::resolveMatchMessage(Transaction *t,
-    std::string key, std::string value) {
+    const std::string &key, const std::string &value) {
     std::string ret = m_match_message;
 
     if (ret.empty() == true) {
@@ -151,16 +159,14 @@ std::string Operator::resolveMatchMessage(Transaction *t,
             ret = "Matched \"Operator `" + m_op + "' with parameter `" +
                 utils::string::limitTo(200, m_param) +
                 "' against variable `" + utils::string::toHexIfNeeded(key) + "' (Value: `" +
-                utils::string::limitTo(100,
-                    utils::string::toHexIfNeeded(value)) + \
+                utils::string::limitToHexIfNeeded(100, value) + \
                 "' )";
         } else {
             std::string p(m_string->evaluate(t));
             ret = "Matched \"Operator `" + m_op + "' with parameter `" +
                 utils::string::limitTo(200, p) +
                 "' against variable `" + utils::string::toHexIfNeeded(key) + "' (Value: `" +
-                utils::string::limitTo(100,
-                    utils::string::toHexIfNeeded(value)) +
+                utils::string::limitToHexIfNeeded(100, value) +
                 "' )";
         }
     }

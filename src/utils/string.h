@@ -90,34 +90,91 @@ inline std::string dash_if_empty(const std::string *str) {
 
 
 inline std::string limitTo(int amount, const std::string &str) {
-    std::string ret;
-
-    if (str.length() > amount) {
-        ret.assign(str, 0, amount);
-        ret = ret + " (" + std::to_string(str.length() - amount) + " " \
-            "characters omitted)";
-        return ret;
+    if (str.size() <= amount) {
+        return str;
     }
 
-    return str;
+    std::string ret;
+    ret.assign(str, 0, amount);
+    ret += " (" + std::to_string(str.length() - amount) + " " \
+        "characters omitted)";
+    return ret;
+}
+
+
+inline void appendHexEscaped(std::string *out, unsigned char c) {
+    static constexpr char digits[] = "0123456789abcdef";
+
+    out->push_back('\\');
+    out->push_back('x');
+    out->push_back(digits[c >> 4]);
+    out->push_back(digits[c & 0x0f]);
+}
+
+
+// escape_spec: escape special chars or not
+// spec chars: '"' (quotation mark, ascii 34), '\' (backslash, ascii 92)
+inline bool needsHexEscape(unsigned char c, bool escape_spec) {
+    return c < 32 || c > 126
+            || (escape_spec && (c == 34 || c == 92));
 }
 
 
 inline std::string toHexIfNeeded(const std::string &str, bool escape_spec = false) {
-    // escape_spec: escape special chars or not
-    // spec chars: '"' (quotation mark, ascii 34), '\' (backslash, ascii 92)
-    std::stringstream res;
+    const auto first = std::find_if(str.begin(), str.end(),
+        [escape_spec](unsigned char c) { return needsHexEscape(c, escape_spec); });
+    if (first == str.end()) {
+        return str;
+    }
 
-    for (const auto ch : str) {
-        int c = (unsigned char)ch;
-        if (c < 32 || c > 126 || (escape_spec == true && (c == 34 || c == 92))) {
-            res << "\\x" << std::setw(2) << std::setfill('0') << std::hex << c;
+    std::string res;
+    res.reserve(str.size());
+    res.append(str.begin(), first);
+    for (auto it = first; it != str.end(); ++it) {
+        const auto c = static_cast<unsigned char>(*it);
+        if (needsHexEscape(c, escape_spec)) {
+            appendHexEscaped(&res, c);
         } else {
-            res << ch;
+            res.push_back(*it);
         }
     }
 
-    return res.str();
+    return res;
+}
+
+
+/*
+ * Same result as limitTo(amount, toHexIfNeeded(str)), but only the retained
+ * prefix is escaped; the rest of the input is only scanned to count what
+ * would be omitted.
+ */
+inline std::string limitToHexIfNeeded(int amount, const std::string &str, bool escape_spec = false) {
+    const auto limit = static_cast<std::size_t>(amount);
+    std::size_t escapedLength = 0;
+    std::string res;
+    res.reserve(limit + 4);
+
+    for (const auto ch : str) {
+        const auto c = static_cast<unsigned char>(ch);
+        const bool escape = needsHexEscape(c, escape_spec);
+
+        if (escapedLength < limit) {
+            if (escape) {
+                appendHexEscaped(&res, c);
+            } else {
+                res.push_back(ch);
+            }
+        }
+        escapedLength += escape ? 4 : 1;
+    }
+
+    if (escapedLength > limit) {
+        res.resize(limit);
+        res += " (" + std::to_string(escapedLength - limit) + " " \
+            "characters omitted)";
+    }
+
+    return res;
 }
 
 
